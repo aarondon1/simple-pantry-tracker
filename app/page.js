@@ -1,113 +1,254 @@
-import Image from "next/image";
+'use client';
+import React, {useState, useEffect} from "react";
+import { 
+  getFirestore, 
+  collection, 
+  getDocs, 
+  addDoc, 
+  query$napshot, 
+  query, 
+  onSnapshot, 
+  deleteDoc,
+  doc,
+ } from 'firebase/firestore';
+import {db} from './firebase';
+//import { Box, Typography, List, ListItem, ListItemText, IconButton } from '@mui/material';
 
 export default function Home() {
+  const [items, setItems] = useState([]);
+
+  const [newItem, setNewItem] = useState({name: '', quantity: ''})
+  const [total, setTotal] = useState(0)
+
+  //add item to database
+  const addItem = async(e) => {
+    e.preventDefault()
+    if (newItem.name !== '' && newItem.quantity !== '') {
+      await addDoc(collection(db, 'items'), {
+        name: newItem.name.trim(),
+        quantity: newItem.quantity,
+      });
+      setNewItem({name: '', quantity: ''})
+    }
+  }
+
+  //read items from database
+  useEffect(() => {
+    const q =query(collection(db, 'items'))
+    const unsubsrcibe = onSnapshot(q, (querySnapshot) => {
+      let itemsArray = []
+
+      querySnapshot.forEach((doc) => {
+        itemsArray.push({...doc.data(), id: doc.id})
+      })
+      setItems(itemsArray);
+
+      //reading from intemsArray to get total
+      const calculateTotal = () => {
+        const totalquantity = itemsArray.reduce((sum, item) => sum + parseFloat(item.quantity), 0)
+        setTotal(totalquantity)
+      }
+      calculateTotal()
+      return () => unsubsrcibe()
+    });
+  }, [])
+
+  //delete item from database
+  const deleteItem = async(id) => {
+    await deleteDoc(doc(db, 'items', id))
+  };
+
+
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.js</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
+    <main className="flex min-h-screen flex-col items-center justify-between sm:p-24 p-4">
+      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm">
+        <h1 className='text-7xl p-4 text-center'>Pantry Tracker</h1>
+        <div className = 'bg-slate-800 p-4 rounded-lg'> 
+          <form className='grid grid-cols-6 items-center text-black'>
+            <input 
+              value = {newItem.name}
+              onChange = {(e) => setNewItem({...newItem, name: e.target.value})}
+              className = 'col-span-3 p-3 border rounded-md' 
+              type="text" 
+              placeholder = 'Enter Name Of Item' 
             />
-          </a>
+            <input 
+              value = {newItem.quantity}
+              onChange = {(e) => setNewItem({...newItem, quantity: e.target.value})}
+              className = 'col-span-2 p-3 border mx-3 rounded-md'
+              type="number" 
+              placeholder = 'Enter Quantity'
+            />
+            <button 
+            onClick = {addItem}
+            className = 'text-white bg-slate-950 hover:bg-slate-900 p-3 text-xl rounded-xl' 
+            type = "submit">
+              add
+            </button>
+          </form>
+          <ul>
+            {items.map((item, id) => (
+              <li
+                key={id}
+                className='my-4 w-full flex justify-between bg-slate-950'
+              >
+                <div className='p-4 w-full flex justify-between'>
+                  <span className='capitalize'>{item.name}</span>
+                  <span>{item.quantity}</span>
+                </div>
+                <button
+                  onClick={() => deleteItem(item.id)}
+                  className='ml-8 p-4 border-l-2 border-slate-900 hover:bg-slate-900 w-16'
+                >
+                  x
+                </button>
+              </li>
+            ))}
+          </ul>
+          {items.length < 1 ?('') : (
+            <div className='flex justify-between p-3'>
+              <span>Total number of items in Pantry : </span>
+              <span>{total}</span>
+            </div>
+          )}
         </div>
-      </div>
-
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-full sm:before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full sm:after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800 hover:dark:bg-opacity-30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50 text-balance`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
       </div>
     </main>
   );
 }
+
+
+// //Material UI version:
+
+// 'use client';
+// import React, { useState, useEffect, use } from "react";
+// import {
+//   getFirestore,
+//   collection,
+//   getDocs,
+//   addDoc,
+//   query,
+//   onSnapshot,
+//   deleteDoc,
+//   doc,
+// } from 'firebase/firestore';
+// import { db } from './firebase';
+// import {
+//   Box,
+//   Typography,
+//   List,
+//   ListItem,
+//   ListItemText,
+//   IconButton,
+//   Container,
+//   TextField,
+//   Button,
+//   AppBar,
+//   Toolbar,
+//   ListItemSecondaryAction,
+// } from '@mui/material';
+// import DeleteIcon from '@mui/icons-material/Delete';
+
+// export default function Home() {
+//   const [items, setItems] = useState([]);
+//   const [newItem, setNewItem] = useState({ name: '', quantity: '' });
+//   const [total, setTotal] = useState(0);
+
+//   // Add item to database
+//   const addItem = async (e) => {
+//     e.preventDefault();
+//     if (newItem.name !== '' && newItem.quantity !== '') {
+//       await addDoc(collection(db, 'items'), {
+//         name: newItem.name.trim(),
+//         quantity: newItem.quantity,
+//       });
+//       setNewItem({ name: '', quantity: '' });
+//     }
+//   };
+
+//   // Read items from database
+//   useEffect(() => {
+//     const q = query(collection(db, 'items'));
+//     const unsubscribe = onSnapshot(q, (querySnapshot) => {
+//       let itemsArray = [];
+//       querySnapshot.forEach((doc) => {
+//         itemsArray.push({ ...doc.data(), id: doc.id });
+//       });
+//       setItems(itemsArray);
+
+//       // Calculate total quantity
+//       const calculateTotal = () => {
+//         const totalQuantity = itemsArray.reduce((sum, item) => sum + parseFloat(item.quantity), 0);
+//         setTotal(totalQuantity);
+//       };
+//       calculateTotal();
+//     });
+
+//     return () => unsubscribe();
+//   }, []);
+
+//   // Delete item from database
+//   const deleteItem = async (id) => {
+//     await deleteDoc(doc(db, 'items', id));
+//   };
+
+//   return (
+//     <Container>
+//       <AppBar position="static">
+//         <Toolbar>
+//           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+//             Pantry Tracker
+//           </Typography>
+//         </Toolbar>
+//       </AppBar>
+//       <Box sx={{ mt: 4, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+//         <Typography variant="h4" align="center" gutterBottom>
+//           Pantry Tracker
+//         </Typography>
+//         <Box component="form" onSubmit={addItem} sx={{ display: 'flex', mb: 2 }}>
+//           <TextField
+//             value={newItem.name}
+//             onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+//             label="Enter item"
+//             variant="outlined"
+//             sx={{ mr: 2, flex: 3 }}
+//           />
+//           <TextField
+//             value={newItem.quantity}
+//             onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
+//             label="Enter quantity"
+//             variant="outlined"
+//             type="number"
+//             sx={{ mr: 2, flex: 2 }}
+//           />
+//           <Button type="submit" variant="contained" color="primary">
+//             Add
+//           </Button>
+//         </Box>
+//         <List>
+//           {items.map((item) => (
+//             <ListItem key={item.id} sx={{ bgcolor: 'background.default', mb: 1 }}>
+//               <ListItemText
+//                 primary={item.name}
+//                 secondary={`Quantity: ${item.quantity}`}
+//               />
+//               <ListItemSecondaryAction>
+//                 <IconButton edge="end" aria-label="delete" onClick={() => deleteItem(item.id)}>
+//                   <DeleteIcon />
+//                 </IconButton>
+//               </ListItemSecondaryAction>
+//             </ListItem>
+//           ))}
+//         </List>
+//         {items.length > 0 && (
+//           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
+//             <Typography variant="h6">Total</Typography>
+//             <Typography variant="h6">{total}</Typography>
+//           </Box>
+//         )}
+//       </Box>
+//     </Container>
+//   );
+// }
+
